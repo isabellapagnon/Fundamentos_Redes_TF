@@ -36,8 +36,10 @@ public class Roteador {
         TabelaRoteamento tabela = new TabelaRoteamento(semaforo);
         Thread sender = new Thread(new MessageReceiver(tabela));
         Thread receiver = new Thread(new MessageSender(tabela, ip_list, semaforo));
-       
+        //Thread gerenciadorTabela = new Thread(new GerenciadorTabelaRoteamento(tabela));
+
         /* Começa as threads */    
+        //gerenciadorTabela.start(); 
         sender.start();
         receiver.start();
         
