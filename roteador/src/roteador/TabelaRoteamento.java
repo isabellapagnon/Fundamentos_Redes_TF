@@ -150,9 +150,6 @@ public class TabelaRoteamento {
         }
         
       System.out.println( "Tabela: de roteamento " + this.get_tabela_string() );
-        
-        
-
 
     }
 
@@ -182,6 +179,17 @@ public class TabelaRoteamento {
      } 
 
         return tabela_string;
+    }
+
+
+     // Itera sobre a tabela e remove as rotas que tem como saída o ip que desconectou da rede
+     public void remove_ip_tabela(String ipToRemove) {
+        for (Iterator<Vizinho> it = this.parametroVizinhos.iterator(); it.hasNext();) {
+            Vizinho entrada = it.next();
+            if (entrada.getIpSaida().equals(ipToRemove)) {
+                it.remove();
+            }
+        } 
     }
 
 }

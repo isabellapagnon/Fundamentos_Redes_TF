@@ -52,7 +52,7 @@ public class MessageReceiver implements Runnable{
             
             /* Obtem o IP de origem da mensagem */
             InetAddress IPAddress = receivePacket.getAddress();
-            //GerenciadorTabelaRoteamento.setIpAndTimeStamp(IPAddress.getHostAddress(), System.nanoTime());
+            ControleTabela.setIpAndTimeStamp(IPAddress.getHostAddress(), System.nanoTime());
             tabela.update_tabela(tabela_string, IPAddress);
         }
     }
