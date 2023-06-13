@@ -36,24 +36,28 @@ public class MessageReceiver implements Runnable{
             DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
             
             try {
+                /* Resetamndo o tamanho dos dados do pacote antes de receber */
+                 receivePacket.setLength(receiveData.length);
                 /* Aguarda o recebimento de uma mensagem */
                 serverSocket.receive(receivePacket);
-                if (receivePacket.getData().length > 0 ) {
-                    System.out.println("[Message receiver]: Recebimento dos dados!");
+                
+                if (receivePacket.getData().length > 0) {
+                    /* Obtem o IP de origem da mensagem */
+                    InetAddress IPAddress = receivePacket.getAddress();
+                    System.out.println("Mensagem recebida do ip: " + IPAddress);
+
+                    /* Transforma a mensagem em string */
+                    String tabela_string = new String(receivePacket.getData());
+                    System.out.println("[Message receiver] Tabela recebida:" + tabela_string);
+                    System.out.println("[Message receiver] Tabela pessoal:" + tabela.get_tabela_string());
+
+                    ControleTabela.setIpAndTimeStamp(IPAddress.getHostAddress(), System.nanoTime());
+                    tabela.update_tabela(tabela_string, IPAddress);
                 }
+
             } catch (IOException ex) {
                 Logger.getLogger(MessageReceiver.class.getName()).log(Level.SEVERE, null, ex);
             }
-            
-            /* Transforma a mensagem em string */
-            String tabela_string = new String( receivePacket.getData());
-            System.out.println("[Message receiver] Tabela recebida:" + tabela_string);
-            System.out.println("[Message receiver] Conteudo Tabela:" + tabela.get_tabela_string());
-            
-            /* Obtem o IP de origem da mensagem */
-            InetAddress IPAddress = receivePacket.getAddress();
-            ControleTabela.setIpAndTimeStamp(IPAddress.getHostAddress(), System.nanoTime());
-            tabela.update_tabela(tabela_string, IPAddress);
         }
     }
     
