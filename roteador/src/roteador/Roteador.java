@@ -32,7 +32,7 @@ public class Roteador {
         Semaphore semaforo = new Semaphore(1);
         
         /* Cria instâncias da tabela de roteamento e das threads de envio e recebimento de mensagens. */
-        TabelaRoteamento tabela = new TabelaRoteamento(semaforo);
+        TabelaRoteamento tabela = new TabelaRoteamento(ip_list, semaforo);
         Thread sender = new Thread(new MessageReceiver(tabela));
         Thread receiver = new Thread(new MessageSender(tabela, ip_list, semaforo));
         Thread controleTabela = new Thread(new ControleTabela(tabela));

@@ -33,21 +33,21 @@ public class MessageReceiver implements Runnable{
         while(true){
             
             /* Cria um DatagramPacket */
-            DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+            DatagramPacket receivedPacket = new DatagramPacket(receiveData, receiveData.length);
             
             try {
                 /* Resetamndo o tamanho dos dados do pacote antes de receber */
-                 receivePacket.setLength(receiveData.length);
+                 receivedPacket.setLength(receiveData.length);
                 /* Aguarda o recebimento de uma mensagem */
-                serverSocket.receive(receivePacket);
+                serverSocket.receive(receivedPacket);
                 
-                if (receivePacket.getData().length > 0) {
+                if (receivedPacket.getData().length > 0) {
                     /* Obtem o IP de origem da mensagem */
-                    InetAddress IPAddress = receivePacket.getAddress();
+                    InetAddress IPAddress = receivedPacket.getAddress();
                     System.out.println("Mensagem recebida do ip: " + IPAddress);
 
                     /* Transforma a mensagem em string */
-                    String tabela_string = new String(receivePacket.getData());
+                    String tabela_string = new String(receivedPacket.getData());
                     System.out.println("[Message receiver] Tabela recebida:" + tabela_string);
                     System.out.println("[Message receiver] Tabela pessoal:" + tabela.get_tabela_string());
 
