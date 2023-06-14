@@ -45,7 +45,15 @@ public class MessageReceiver implements Runnable{
         byte[] receiveData = new byte[1024];
         
         while(true){
-            remocaoInatividade(vizinhos);
+            vizinhos.forEach((ip, lastConnection) -> {
+                //Long tempoAtual = System.currentTimeMillis();
+                Float tempoAtualSegundos = ((System.currentTimeMillis() - lastConnection)/1000F);
+                if (tempoAtualSegundos > 30F) {
+                    System.out.print("\nIP:" + ip +" foi removido por inatividade\n");
+                    tabela.removeVizinho(ip, mudancaTabela);
+                }
+            });
+            //remocaoInatividade(vizinhos);
             /* Cria um DatagramPacket */
             DatagramPacket receivedPacket = new DatagramPacket(receiveData, receiveData.length);
             
@@ -69,10 +77,10 @@ public class MessageReceiver implements Runnable{
                     // ControleTabela.setIpAndTimeStamp(IPAddress.getHostAddress(), System.nanoTime());
                     tabela.update_tabela(tabela_string, IPAddress, mudancaTabela);
                     System.out.println(tabela.toString());
-                    
+
                     String[] ipsReceived = tabela.getIps().split(";");
                     for(int i = 1; i < ipsReceived.length; i++){
-                        System.out.println(i + ": " + ipsReceived[i]);
+                        //System.out.println(i + ": " + ipsReceived[i]);
                         vizinhos.put(ipsReceived[i],System.currentTimeMillis());
                     }
                     //listaIp.forEach(ip -> vizinhos.put(ip,System.currentTimeMillis()));
@@ -88,12 +96,13 @@ public class MessageReceiver implements Runnable{
 
     private void remocaoInatividade(Map<String, Long> vizinhos) {
         long currentTime = System.currentTimeMillis();
-        List<String> routesToRemove = new ArrayList<>();
+        //List<String> routesToRemove = new ArrayList<>();
     
         vizinhos.forEach((ip, lastConnection) -> {
             float tempo_segundos = (currentTime - lastConnection) / 1000F;
-            System.out.println("lastConnection: " + lastConnection +  " | " + "tempo atual: " + tempo_segundos);
-            if (tempo_segundos > 30) {
+            //System.out.println("lastConnection: " + lastConnection +  " | " + "tempo atual: " + tempo_segundos);
+            if (tempo_segundos > 30F) {
+                System.out.print("IP:" + ip +" foi removido por inatividade");
                 tabela.removeVizinho(ip, mudancaTabela);
             }
         });

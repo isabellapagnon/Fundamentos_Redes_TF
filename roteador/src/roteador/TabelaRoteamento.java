@@ -10,9 +10,6 @@ import java.util.Optional;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiPredicate;
-import java.util.function.Predicate;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 
@@ -23,7 +20,7 @@ public class TabelaRoteamento {
      */
     private List<String> ipList;
     public List<Vizinho> parametroVizinhos;
-    public final String meuIp = "10.32.143.19";
+    public final String meuIp = "";
 
     public TabelaRoteamento(List<String> ipList, Semaphore semaforo) {
         this.ipList = ipList;
@@ -78,23 +75,26 @@ public class TabelaRoteamento {
                 parametroRecebido.stream().noneMatch(receivedparametro -> compareparametroVizinhosByDestinationIp.test(receivedparametro, parametro)) &&
                 parametro.getMetrica() != 1
         );
-
-        if (parametroVizinhosRemovido) {
-            System.out.println("Remocao do ip por inatividade");
-            mudancaTabela.set(true);
-        }
-
-        // if (mudancaTabela.get()) {
-        //     System.out.println("Houve uma mudança na tabela:\n" + this);
-        // }
     }
 
     public void removeVizinho(String IPtoRemove, AtomicBoolean mudancaTabela) {
     if(parametroVizinhos.removeIf(parametro -> IPtoRemove.equals(parametro.getIpSaida()))){
         mudancaTabela.set(true);
     }
+}
 
-    }
+    // public void removeVizinho2(String ip, AtomicBoolean mudancaTabela){
+    //     int index = -1;
+    //     System.out.println("IP PARA REMOCAO: " + ip);
+    //     for (int i = 0; i < parametroVizinhos.size(); i++){
+    //         System.out.println("Ip comparacao: " + parametroVizinhos.get(i).getIp());
+    //         if(parametroVizinhos.get(i).getIp().equals(ip)){
+    //             index = i;
+    //         }
+    //     }
+    //     parametroVizinhos.remove(index);
+    //     mudancaTabela.set(true);
+    // }
 
     public String formatacaoTabela() {
                 /* Tabela de roteamento vazia conforme especificado no protocolo */
@@ -120,6 +120,12 @@ public class TabelaRoteamento {
                 .collect(Collectors.toList());
     }
 
+    public String getIps(){
+        return parametroVizinhos.stream()
+                .map(parametro -> ";" + parametro.getIp())
+                .collect(Collectors.joining());
+    }
+
     @Override
     public String toString() {
         StringBuilder stringBuilder = new StringBuilder();
@@ -133,12 +139,6 @@ public class TabelaRoteamento {
                         .append("\n")
         );
         return stringBuilder.toString();
-    }
-
-    public String getIps(){
-        return parametroVizinhos.stream()
-                .map(parametro -> ";" + parametro.getIp())
-                .collect(Collectors.joining());
     }
 
 }
