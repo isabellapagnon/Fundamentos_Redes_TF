@@ -8,7 +8,7 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -16,11 +16,13 @@ public class MessageSender implements Runnable{
     TabelaRoteamento tabela; /*Tabela de roteamento */
     ArrayList<String> vizinhos; /* Lista de IPs dos roteadores vizinhos */
     Semaphore semaforo; 
+    AtomicBoolean mudancaTabela;
     
-    public MessageSender(TabelaRoteamento t, ArrayList<String> v, Semaphore semaforo){
+    public MessageSender(TabelaRoteamento t, ArrayList<String> v, Semaphore semaforo, AtomicBoolean mudancaTabela){
         tabela = t;
         vizinhos = v;
         this.semaforo = semaforo;
+        this.mudancaTabela = mudancaTabela;
     }
     
     @Override
@@ -40,7 +42,7 @@ public class MessageSender implements Runnable{
         while(true){
             
             /* Pega a tabela de roteamento no formato string, conforme especificado pelo protocolo. */
-            String tabela_string = tabela.get_tabela_string();
+            String tabela_string = tabela.toString();
                
             /* Converte string para array de bytes para envio pelo socket. */
             sendData = tabela_string.getBytes();
@@ -56,11 +58,13 @@ public class MessageSender implements Runnable{
                 }
                 
                 /* Configura pacote para envio da menssagem para o roteador vizinho na porta 5000*/
-                DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, 5000);         
+                DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, 5000);   
+                      
                 
                 /* Realiza envio da mensagem. */
                 try {
                     clientSocket.send(sendPacket);
+                    System.out.println("Enviando a mensagem : " + sendData + " para:  " + IPAddress);
                 } catch (IOException ex) {
                     Logger.getLogger(MessageSender.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -71,8 +75,8 @@ public class MessageSender implements Runnable{
              * vizinho imediatamente.
              */
             try {
-                //Thread.sleep(10000);
-                semaforo.tryAcquire(10, TimeUnit.SECONDS);// usando semaforo para garantir multithreading
+                Thread.sleep(10000);
+                //semaforo.tryAcquire(10, TimeUnit.SECONDS);// usando semaforo para garantir multithreading
             } catch (InterruptedException ex) {
                 Logger.getLogger(MessageSender.class.getName()).log(Level.SEVERE, null, ex);
             }

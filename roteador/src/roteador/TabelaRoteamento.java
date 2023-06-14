@@ -2,11 +2,19 @@ package roteador;
 
 import java.net.InetAddress;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiPredicate;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+
 
 public class TabelaRoteamento {
     /*
@@ -15,167 +23,122 @@ public class TabelaRoteamento {
      */
     private List<String> ipList;
     public List<Vizinho> parametroVizinhos;
-    Semaphore semaforo;
+    public final String meuIp = "10.32.143.19";
 
-    public TabelaRoteamento(List<String> ipList, Semaphore s) {
-        parametroVizinhos = new ArrayList<>();
-        semaforo = s;
+    public TabelaRoteamento(List<String> ipList, Semaphore semaforo) {
+        this.ipList = ipList;
+        this.parametroVizinhos = new ArrayList<>();
     }
 
-    // Adicionando os IP da lista na tabela de roteamento como Vizinhos, a métrica
-    // inicia como 1 e a saida é direta
-    public void adicionaIpListaVizinhos() {
-        this.ipList.forEach((ip) -> {
-            this.parametroVizinhos.add(new Vizinho(ip, 1, ip));
-        });
+    public void start() {
+        ipList.forEach(this::adicionaIpListaVizinhos);
     }
 
-    public void update_tabela(String tabela_s, InetAddress IPAddress) {
-        /* Atualize a tabela de rotamento a partir da string recebida. */
+    private void adicionaIpListaVizinhos(String vizinho) {
+        parametroVizinhos.add(new Vizinho(vizinho, 1, vizinho));
+    }
 
-        System.out.println(IPAddress.getHostAddress() + ": " + tabela_s);
+    public boolean encontraVizinho(String vizinhoIp) {
+        return parametroVizinhos.stream()
+                .anyMatch(parametro -> parametro.getIp().equals(vizinhoIp) && parametro.getMetrica() == 1);
+    }
 
-        int metrica = 0; // atualizar depois para ir contando os pulos
-
-        // Caso a tabela recebida contenha "!""
-        if (tabela_s.contains("!")) {
-
-            // Itera sobre as entradas e verfica se o Ip que enviou já esta cadastrado na
-            // tabela
-            boolean existe = false;
-            for (int i = 0; i < parametroVizinhos.size(); i++) {
-                if (parametroVizinhos.get(i).ip == IPAddress.getHostAddress()) {
-                    // ja possui na tabela de roteamento
-                    existe = true;
-                }
-            }
-
-            // Caso o ip não exista, adiciona o Ip de quem enviou como Ip de saída como
-            // destino e como IP de destino
-            if (!existe) {
-                Vizinho novaEntrada = new Vizinho(IPAddress.getHostAddress(), 1, IPAddress.getHostAddress());
-                this.parametroVizinhos.add(novaEntrada);
-                semaforo.release();
-            }
-
+    public void update_tabela(String tabela, InetAddress IPAddress, AtomicBoolean mudancaTabela) {
+        List<Vizinho> parametroRecebido = formatacaoParametrosVizinhos(tabela, IPAddress);
+        BiPredicate<Vizinho, Vizinho> compareparametroVizinhosByDestinationIp = (vizinho1, vizinho2) -> vizinho1.getIp().equals(vizinho2.getIp());
+        if (ipList.contains(IPAddress.getHostAddress()) && !encontraVizinho(IPAddress.getHostAddress())) {
+            adicionaIpListaVizinhos(IPAddress.getHostAddress());
         }
 
-        // Caso a tabela contenha *
-        if (tabela_s.contains("*")) {
+        parametroRecebido.stream()
+                .filter(parametroRec -> !parametroRec.getIp().equals(meuIp))
+                .forEach(parametroRec -> {
+                    System.out.println("Os seguintes parametro foram recebidos: " + parametroRec);
+                    Optional<Vizinho> parametroByDestinationIp = parametroVizinhos.stream()
+                            .filter(parametro -> compareparametroVizinhosByDestinationIp.test(parametro, parametroRec))
+                            .findFirst();
 
-            // Divide as linhas usando o marcador *
-            String[] lines = tabela_s.split("\\*");
+                    parametroByDestinationIp.ifPresent(foundparametro -> System.out.println("Parametro com o mesmo IP: " + foundparametro.getIp()));
 
-            // Itera sobre as linhas
-            for (int i = 0; i < lines.length; i++) {
-
-                // O if ignora linhas vazias
-                if (!lines[i].equals("")) {
-
-                    // Separa a linha em colunas utilizando o marcador ;
-                    String[] columns = lines[i].split(";");
-
-                    // Pegando a métrica da linha da tabela correspondente e transforma em inteiro
-                    char aux = columns[1].charAt(0);
-                    int met = Integer.parseInt(String.valueOf(aux));
-
-                    // Caso a tabela do roteador esteja vazia adiciona o primeiro da tabela para
-                    // continuar a iteração
-                    if (this.parametroVizinhos.isEmpty()) {
-
-                        Vizinho novaEntrada = new Vizinho(columns[0], met, IPAddress.getHostAddress());
-                        this.parametroVizinhos.add(novaEntrada);
-                        semaforo.release();
-
-                        // Caso não esteja vazio performa o seguinte :
-                    } else {
-
-                        // Cria booleano para verificar alterações e nova entrada para adicionar caso
-                        // seja necessário
-                        boolean deveAdicionar = false;
-                        Vizinho novaEntrada = new Vizinho(columns[0], met, IPAddress.getHostAddress());
-
-                        // Itera sobre todas as entradas da tabela de roteamento atual
-                        // Altera o booleano caso deva adicionar na tabela
-                        for (Vizinho entrada : this.parametroVizinhos) {
-
-                            // Verifica se o IP destino recebido não é igual ao que existe na tabela
-                            if (!(entrada.getIp().equals(columns[0]))) {
-
-                                // Caso não exista soma a metrica da nova entrada em mais 1 e marcar o booleano
-                                // para adicionar como true
-                                novaEntrada.addMetrica();
-                                deveAdicionar = true;
-
-                                // Caso seja igual verifica se as metricas são diferentes
-                            } else if (entrada.getMetrica() > novaEntrada.getMetrica()) {
-
-                                // Caso forem iguais e a metrica atual é a menor atualiza ip saida e metrica da
-                                // tabela
-                                entrada.setIpSaida(novaEntrada.getIpSaida());
-                                novaEntrada.addMetrica();
-                                entrada.setMetrica(novaEntrada.getMetrica());
-                                semaforo.release();
-
-                            }
-                        }
-
-                        // Caso deva adicionar o faz aqui
-                        if (deveAdicionar) {
-                            this.parametroVizinhos.add(novaEntrada);
-                            semaforo.release();
-                        }
-
+                    if (parametroByDestinationIp.isEmpty()) {// esta vazio
+                        parametroRec.setMetrica(parametroRec.getMetrica() + 1);
+                        parametroVizinhos.add(parametroRec);
+                        mudancaTabela.set(true);
+                    } else if (parametroByDestinationIp.get().getMetrica() > (parametroRec.getMetrica() + 1)) {
+                        System.out.println("Parametro recebido tem metrica menor que o atual. " + parametroRec.getIp());
+                        Vizinho foundparametro = parametroByDestinationIp.get();
+                        foundparametro.setMetrica(parametroRec.getMetrica() + 1);
+                        foundparametro.setIpSaida(parametroRec.getIpSaida());
+                        mudancaTabela.set(true);
                     }
+                });
 
-                }
-            }
+        boolean parametroVizinhosRemovido = parametroVizinhos.removeIf(parametro ->
+                parametro.getIpSaida().equals(IPAddress.getHostAddress()) &&
+                parametroRecebido.stream().noneMatch(receivedparametro -> compareparametroVizinhosByDestinationIp.test(receivedparametro, parametro)) &&
+                parametro.getMetrica() != 1
+        );
 
+        if (parametroVizinhosRemovido) {
+            System.out.println("Remocao do ip por inatividade");
+            mudancaTabela.set(true);
         }
 
-        System.out.println("Tabela: de roteamento " + this.get_tabela_string());
+        // if (mudancaTabela.get()) {
+        //     System.out.println("Houve uma mudança na tabela:\n" + this);
+        // }
+    }
+
+    public void removeVizinho(String IPtoRemove, AtomicBoolean mudancaTabela) {
+    if(parametroVizinhos.removeIf(parametro -> IPtoRemove.equals(parametro.getIpSaida()))){
+        mudancaTabela.set(true);
+    }
 
     }
 
-    public String get_tabela_string() {
-        /* Tabela de roteamento vazia conforme especificado no protocolo */
-        String tabela_string = "";
+    public String formatacaoTabela() {
+                /* Tabela de roteamento vazia conforme especificado no protocolo */
+        if (parametroVizinhos.isEmpty())
+            return "!";
 
-        /*
-         * Converta a tabela de rotamento para string, conforme formato definido no
-         * protocolo .
-         */
-        if (this.parametroVizinhos.isEmpty()) {
-
-            // Caso tabela de roteamento esteja vazia. Tabela String = "!"
-            tabela_string = "!";
-
-        } else {
-            try {
-                semaforo.acquire();
-            } catch (InterruptedException ex) {
-                Logger.getLogger(TabelaRoteamento.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            for (Iterator<Vizinho> it = this.parametroVizinhos.iterator(); it.hasNext();) {
-                Vizinho entrada = it.next();
-                tabela_string = tabela_string + "*" + entrada.getIp() + ";" + entrada.getMetrica();
-            }
-            semaforo.release();
-
-        }
-
-        return tabela_string;
+        return parametroVizinhos.stream()
+                .map(parametro -> "*" + parametro.getIp() + ";" + parametro.getMetrica())
+                .collect(Collectors.joining());
     }
 
-    // Itera sobre a tabela e remove as rotas que tem como saída o ip que
-    // desconectou da rede
-    public void remove_ip_tabela(String ipToRemove) {
-        for (Iterator<Vizinho> it = this.parametroVizinhos.iterator(); it.hasNext();) {
-            Vizinho entrada = it.next();
-            if (entrada.getIpSaida().equals(ipToRemove)) {
-                it.remove();
-            }
-        }
+    public List<Vizinho> formatacaoParametrosVizinhos(String tabela, InetAddress IPAddress) {
+        String[] parametroVizinhos = tabela.split("\\*");
+        return Arrays.stream(parametroVizinhos)
+                .map(vizinho -> {
+                    String[] conexao = vizinho.split(";");
+                    if (conexao.length > 1) {
+                        return new Vizinho(conexao[0], Integer.valueOf(conexao[1]), IPAddress.getHostAddress());
+                    }
+                    return null;
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("Ip - metrica - ip saida\n");
+        parametroVizinhos.forEach(parametro ->
+                stringBuilder.append(parametro.getIp())
+                        .append(" - ")
+                        .append(parametro.getMetrica())
+                        .append(" - ")
+                        .append(parametro.getIpSaida())
+                        .append("\n")
+        );
+        return stringBuilder.toString();
+    }
+
+    public String getIps(){
+        return parametroVizinhos.stream()
+                .map(parametro -> ";" + parametro.getIp())
+                .collect(Collectors.joining());
     }
 
 }

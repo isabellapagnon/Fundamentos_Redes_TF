@@ -1,5 +1,7 @@
 package roteador;
 
+import java.time.LocalTime;
+
 public class Vizinho {
 
     public Vizinho(String ip, int metrica, String ipSaida){
@@ -10,12 +12,13 @@ public class Vizinho {
     public String ip;
     public int metrica;
     public String ipSaida;
+    private LocalTime lastConnection;
 
     public String getIp() {
         return ip;
     }
 
-    public int getMetrica() {
+    public Integer getMetrica() {
         return metrica;
     }
     
@@ -38,6 +41,19 @@ public class Vizinho {
     public void setIpSaida(String ipSaida) {
         this.ipSaida = ipSaida;
     }
+
+    public static boolean comparacaoIp(Vizinho vizinho1, Vizinho vizinho2) {
+        return vizinho1.getIp().equals(vizinho2.getIp());
+    }
+
+    public LocalTime getLastConnection(){
+        return lastConnection;
+    }
+
+    public void setLastConnection(){
+        this.lastConnection = LocalTime.now();
+    }
+    
 
     public String toString(){
         return "*" + ip + ";" + metrica;
